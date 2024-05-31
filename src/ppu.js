@@ -470,77 +470,7 @@ PPU.prototype = {
   },
 
   endFrame: function () {
-    var i, x, y;
-    var buffer = this.buffer;
-
-    // Draw spr#0 hit coordinates:
-    if (this.showSpr0Hit) {
-      // Spr 0 position:
-      if (
-        this.sprX[0] >= 0 &&
-        this.sprX[0] < 256 &&
-        this.sprY[0] >= 0 &&
-        this.sprY[0] < 240
-      ) {
-        for (i = 0; i < 256; i++) {
-          buffer[(this.sprY[0] << 8) + i] = 0xff5555;
-        }
-        for (i = 0; i < 240; i++) {
-          buffer[(i << 8) + this.sprX[0]] = 0xff5555;
-        }
-      }
-      // Hit position:
-      if (
-        this.spr0HitX >= 0 &&
-        this.spr0HitX < 256 &&
-        this.spr0HitY >= 0 &&
-        this.spr0HitY < 240
-      ) {
-        for (i = 0; i < 256; i++) {
-          buffer[(this.spr0HitY << 8) + i] = 0x55ff55;
-        }
-        for (i = 0; i < 240; i++) {
-          buffer[(i << 8) + this.spr0HitX] = 0x55ff55;
-        }
-      }
-    }
-
-    // This is a bit lazy..
-    // if either the sprites or the background should be clipped,
-    // both are clipped after rendering is finished.
-    if (
-      this.clipToTvSize ||
-      this.f_bgClipping === 0 ||
-      this.f_spClipping === 0
-    ) {
-      // Clip left 8-pixels column:
-      for (y = 0; y < 240; y++) {
-        for (x = 0; x < 8; x++) {
-          buffer[(y << 8) + x] = 0;
-        }
-      }
-    }
-
-    if (this.clipToTvSize) {
-      // Clip right 8-pixels column too:
-      for (y = 0; y < 240; y++) {
-        for (x = 0; x < 8; x++) {
-          buffer[(y << 8) + 255 - x] = 0;
-        }
-      }
-    }
-
-    // Clip top and bottom 8 pixels:
-    if (this.clipToTvSize) {
-      for (y = 0; y < 8; y++) {
-        for (x = 0; x < 256; x++) {
-          buffer[(y << 8) + x] = 0;
-          buffer[((239 - y) << 8) + x] = 0;
-        }
-      }
-    }
-
-    this.nes.ui.writeFrame(buffer);
+    this.nes.ui.writeFrame(this.buffer);
   },
 
   updateControlReg1: function (value) {
@@ -1019,124 +949,62 @@ PPU.prototype = {
   },
 
   renderSpritesPartially: function (startscan, scancount, bgPri) {
-    if (this.f_spVisibility === 1) {
-      for (var i = 0; i < 64; i++) {
-        if (
-          this.bgPriority[i] === bgPri &&
-          this.sprX[i] >= 0 &&
-          this.sprX[i] < 256 &&
-          this.sprY[i] + 8 >= startscan &&
-          this.sprY[i] < startscan + scancount
-        ) {
-          // Show sprite.
-          if (this.f_spriteSize === 0) {
-            // 8x8 sprites
 
-            this.srcy1 = 0;
-            this.srcy2 = 8;
+    for (var i = 0; i < 64; i++) {
+      if (
+        this.bgPriority[i] === bgPri &&
+        this.sprX[i] >= 0 &&
+        this.sprX[i] < 256 &&
+        this.sprY[i] + 8 >= startscan &&
+        this.sprY[i] < startscan + scancount
+      ) {
+        // Show sprite.
 
-            if (this.sprY[i] < startscan) {
-              this.srcy1 = startscan - this.sprY[i] - 1;
-            }
+        // 8x8 sprites
 
-            if (this.sprY[i] + 8 > startscan + scancount) {
-              this.srcy2 = startscan + scancount - this.sprY[i] + 1;
-            }
+        this.srcy1 = 0;
+        this.srcy2 = 8;
 
-            if (this.f_spPatternTable === 0) {
-              this.ptTile[this.sprTile[i]].render(
-                this.buffer,
-                0,
-                this.srcy1,
-                8,
-                this.srcy2,
-                this.sprX[i],
-                this.sprY[i] + 1,
-                this.sprCol[i],
-                this.sprPalette,
-                this.horiFlip[i],
-                this.vertFlip[i],
-                i,
-                this.pixrendered
-              );
-            } else {
-              this.ptTile[this.sprTile[i] + 256].render(
-                this.buffer,
-                0,
-                this.srcy1,
-                8,
-                this.srcy2,
-                this.sprX[i],
-                this.sprY[i] + 1,
-                this.sprCol[i],
-                this.sprPalette,
-                this.horiFlip[i],
-                this.vertFlip[i],
-                i,
-                this.pixrendered
-              );
-            }
-          } else {
-            // 8x16 sprites
-            var top = this.sprTile[i];
-            if ((top & 1) !== 0) {
-              top = this.sprTile[i] - 1 + 256;
-            }
+        if (this.sprY[i] < startscan) {
+          this.srcy1 = startscan - this.sprY[i] - 1;
+        }
 
-            var srcy1 = 0;
-            var srcy2 = 8;
+        if (this.sprY[i] + 8 > startscan + scancount) {
+          this.srcy2 = startscan + scancount - this.sprY[i] + 1;
+        }
 
-            if (this.sprY[i] < startscan) {
-              srcy1 = startscan - this.sprY[i] - 1;
-            }
-
-            if (this.sprY[i] + 8 > startscan + scancount) {
-              srcy2 = startscan + scancount - this.sprY[i];
-            }
-
-            this.ptTile[top + (this.vertFlip[i] ? 1 : 0)].render(
-              this.buffer,
-              0,
-              srcy1,
-              8,
-              srcy2,
-              this.sprX[i],
-              this.sprY[i] + 1,
-              this.sprCol[i],
-              this.sprPalette,
-              this.horiFlip[i],
-              this.vertFlip[i],
-              i,
-              this.pixrendered
-            );
-
-            srcy1 = 0;
-            srcy2 = 8;
-
-            if (this.sprY[i] + 8 < startscan) {
-              srcy1 = startscan - (this.sprY[i] + 8 + 1);
-            }
-
-            if (this.sprY[i] + 16 > startscan + scancount) {
-              srcy2 = startscan + scancount - (this.sprY[i] + 8);
-            }
-
-            this.ptTile[top + (this.vertFlip[i] ? 0 : 1)].render(
-              this.buffer,
-              0,
-              srcy1,
-              8,
-              srcy2,
-              this.sprX[i],
-              this.sprY[i] + 1 + 8,
-              this.sprCol[i],
-              this.sprPalette,
-              this.horiFlip[i],
-              this.vertFlip[i],
-              i,
-              this.pixrendered
-            );
-          }
+        if (this.f_spPatternTable === 0) {
+          this.ptTile[this.sprTile[i]].render(
+            this.buffer,
+            0,
+            this.srcy1,
+            8,
+            this.srcy2,
+            this.sprX[i],
+            this.sprY[i] + 1,
+            this.sprCol[i],
+            this.sprPalette,
+            this.horiFlip[i],
+            this.vertFlip[i],
+            i,
+            this.pixrendered
+          );
+        } else {
+          this.ptTile[this.sprTile[i] + 256].render(
+            this.buffer,
+            0,
+            this.srcy1,
+            8,
+            this.srcy2,
+            this.sprX[i],
+            this.sprY[i] + 1,
+            this.sprCol[i],
+            this.sprPalette,
+            this.horiFlip[i],
+            this.vertFlip[i],
+            i,
+            this.pixrendered
+          );
         }
       }
     }
